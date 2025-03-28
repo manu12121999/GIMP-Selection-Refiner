@@ -60,46 +60,44 @@ class SelectionRefinerSAM(Gimp.PlugIn):
         
         image.undo_group_start()
 
-        mask_file = Gio.file_new_for_path(os.path.join(tempfile.gettempdir(), "image_out.png"))
-        
         #GimpUi.init("python-plugin-selection-refiner-sam")
         #dialog = GimpUi.ProcedureDialog.new(procedure, config, "Run Plugin")
         #dialog.fill(["please wait"])
         #dialog.run()
         #dialog.fill(["please wait"])
+        layer = drawables[0]
+        w,h = layer.get_width(), layer.get_height()
+        scale = 1024 / max(w, h)
+        new_w, new_h = int(w*scale), int(h*scale)
 
         selection = Gimp.Selection.bounds(image)
-        selection_bounds = np.array([selection.x1, selection.y1, selection.x2, selection.y2])
-        
-        # drawables[0].remove_mask(1)
+        selection_bounds = np.array([selection.x1 * scale, selection.y1 * scale, 
+                                     selection.x2 * scale, selection.y2 * scale], dtype=np.int64)
 
-        layer = drawables[0]
+        
         # get the image as numpy array (https://gitlab.gnome.org/GNOME/gimp/-/issues/8686)
-        w,h = layer.get_width(), layer.get_height()
         rect = Gegl.Rectangle.new(0, 0, w, h)
-        buffer = layer.get_buffer()
-        buffer_bytes = buffer.get(rect, 1.0, None, Gegl.AbyssPolicy(0))
+        buffer1 = layer.get_buffer()
+        buffer_bytes = buffer1.get(rect, 1.0, None, Gegl.AbyssPolicy(0))
         image_arr = np.frombuffer(buffer_bytes, dtype=np.uint8).reshape((h,w,-1))
 
         #Inference
-        result_layer_arr = self.sam_inference(image_arr[:,:,:3], selection_bounds)
+        result_layer_arr = self.sam_inference(image_arr[:,:,:3], selection_bounds, new_w, new_h, w, h)
         
-        
-        #print(result_layer_arr.shape)
-        #result_layer_arr_4channels = np.repeat(result_layer_arr[:, :, np.newaxis], 4, axis=2)
-        #buffer.set(rect, TODO , result_layer_arr_4channels.tobytes())
-        #buffer.flush()
-
-        #output
-        result_layer = Gimp.file_load_layer(Gimp.RunMode.NONINTERACTIVE, image, mask_file)
-        if self.mode == "remove":
-            mask = result_layer.create_mask(5)
-            drawables[0].add_mask(mask)
-        elif self.mode == "select":
-            image.insert_layer(result_layer, None, 1)
+        result_layer = Gimp.Layer().new(image, "result", w, h, Gimp.ImageType.RGBA_IMAGE, 1, Gimp.LayerMode.NORMAL)
+        image.insert_layer(result_layer, None, 1)
+        buffer2 = result_layer.get_buffer()
+        if self.mode == "select":
+            rect = Gegl.Rectangle.new(0, 0, w, h)
+            buffer2.set(rect, "RGBA u8" , result_layer_arr.tobytes())
+            buffer2.flush()
+            result_layer.update(0,0,w,h)
             image.select_item(Gimp.ChannelOps.REPLACE, result_layer)
-            image.remove_layer(result_layer)
+        elif self.mode == "remove":
+            pass #TODO
         
+        image.remove_layer(result_layer)
+
         #dialog.destroy()
         image.undo_group_end()
         Gimp.displays_flush()
@@ -107,14 +105,9 @@ class SelectionRefinerSAM(Gimp.PlugIn):
         return procedure.new_return_values(Gimp.PDBStatusType.SUCCESS, None)
         
  
-    def sam_inference(self, image_array, bounds):
+    def sam_inference(self, image_array, bounds, new_w, new_h, original_w, original_h):
             
         image = Image.fromarray(image_array)
-        w, h = image.size
-
-        # scale the image to have the longer side 1024
-        scale = 1024 / max(w, h)
-        new_w, new_h = int(w * scale), int(h * scale)
         im = np.array(image.resize((new_w, new_h)))
 
         # load SAM
@@ -125,7 +118,7 @@ class SelectionRefinerSAM(Gimp.PlugIn):
         predictor.set_image(im)
 
         # sam prediction
-        masks, _, _ = predictor.predict(box=bounds*scale, multimask_output=False)
+        masks, _, _ = predictor.predict(box=bounds, multimask_output=False)
         mask_rgba = np.zeros((masks[0].shape[0], masks[0].shape[1], 4), dtype=np.uint8)
 
         if self.mode == "select": #  make it transparent and white
@@ -138,9 +131,6 @@ class SelectionRefinerSAM(Gimp.PlugIn):
         # Convert the numpy array to an Image object
         mask_image = Image.fromarray(mask_rgba)
 
-        # Save the mask as a PNG
-        mask_image.resize((w, h)).save(os.path.join(tempfile.gettempdir(), "image_out.png"))
-        
-        return np.array(mask_image.resize((w, h)))
+        return np.array(mask_image.resize((original_w, original_h)))
                 
 Gimp.main(SelectionRefinerSAM.__gtype__, sys.argv)

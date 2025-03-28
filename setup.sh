@@ -26,8 +26,8 @@ PARENT_DIR=$(basename "$(dirname "$SCRIPT_PATH")")
 GRANDPARENT_DIR=$(basename "$(dirname "$(dirname "$SCRIPT_PATH")")")
 
 # Check if the folder names match
-if [[ "$PARENT_DIR" != "gimp-sam" ]]; then
-    echo "CHECK YOUR PATHS: THE .PY FILE SHOULD BE PLACED IN A FOLDER OF THE SAME NAME, e.g. 'background-remover.py' inside 'background-remover'."
+if [[ "$PARENT_DIR" != "selection_refiner" ]]; then
+    echo "CHECK YOUR PATHS: THE .PY FILE SHOULD BE PLACED IN A FOLDER OF THE SAME NAME, e.g. 'selection_refiner.py' inside 'selection_refiner/'."
 fi
 
 if [[ "$GRANDPARENT_DIR" != "plug-ins" ]]; then
