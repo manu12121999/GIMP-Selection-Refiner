@@ -8,20 +8,23 @@ GIMP Plugin to refine a selection using a neural network
 
 ## Installation:
 
-### Linux: 
+### Windows: FOR NOW ONLY SAM 1.0
+
+
 1. Install python
 
 2. Rename the folder to `selection_refiner` and place it in your Gimp Plugins directory.
   To find it, go inside GIMP to `Edit`->`Preferences`->`Folders`->`Plugins`. The folder must be named `selection_refiner`!!!
 
 
-3. make the python file executable and install dependencies with: 
+3. install dependencies and download model files by double clicking
 
 ```
-bash ./setup.sh
+setup.bat
 ```
 
  
+
 
 ## Usage:
 1. Select the item roughly (make sure the entire object is in the selection)
