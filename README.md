@@ -1,8 +1,7 @@
 # GIMP-Selection-Refiner
 GIMP Plugin to refine a selection using a neural network
 
-![Image](https://github.com/user-attachments/assets/2c0d9aa9-73bc-40bd-adda-a3a42c7a1b7c)
-
+![Image](https://github.com/user-attachments/assets/5cd938df-5dc3-40b1-87e2-4649a9401c07)
 
 
 ## Made for Gimp3.0. Works only on Linux
@@ -29,3 +28,24 @@ bash ./setup.sh
 2. In the top bar, go to
     `Select` -> `Refine Selection using SAM`
 
+
+## Notes:
+There are 4 different segment-anything-2 models, [`tiny`, `small`, `base`, `large`]. At the moment, `base` is used. If you want better quality or better speed, another one can be used. For this, uncomment the corresponding wget line in `setup.sh` 
+e.g. 
+```
+#wget https://dl.fbaipublicfiles.com/segment_anything_2/092824/sam2.1_hiera_large.pt
+```
+to 
+```
+wget https://dl.fbaipublicfiles.com/segment_anything_2/092824/sam2.1_hiera_large.pt
+```
+
+
+and change line 28 in `selection_refiner.py` from 
+```
+SAM_SIZE = "base"
+```
+to e.g.  
+```
+SAM_SIZE = "large"
+```

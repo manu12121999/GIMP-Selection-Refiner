@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import os
 import sys
-import tempfile
 
 # This Plugin is only for GIMP Version >= 3.0.0 and linux
 import gi
@@ -24,7 +23,30 @@ sys.path.extend([baseLoc])
 import numpy as np
 import torch
 from PIL import Image
-from segment_anything import SamPredictor, sam_model_registry
+
+SAM_VERSION = 2
+SAM_SIZE = "base"
+
+if SAM_VERSION == 1:
+    from segment_anything import SamPredictor, sam_model_registry
+elif SAM_VERSION == 2:
+    from sam2.build_sam import build_sam2
+    from sam2.sam2_image_predictor import SAM2ImagePredictor
+
+
+# set checkpoint
+if SAM_VERSION == 1:
+    sam_checkpoint = os.path.join(baseLoc, "sam_vit_l_0b3195.pth")
+elif SAM_VERSION == 2:
+    if SAM_SIZE == "small":
+        sam_cfg = "configs/sam2.1/sam2.1_hiera_s.yaml"
+        sam_checkpoint = os.path.join(baseLoc, "sam2.1_hiera_small.pt")
+    elif SAM_SIZE == "large":
+        sam_cfg = "configs/sam2.1/sam2.1_hiera_l.yaml"
+        sam_checkpoint = os.path.join(baseLoc, "sam2.1_hiera_large.pt")
+    else: # base
+        sam_cfg = "configs/sam2.1/sam2.1_hiera_b+.yaml"
+        sam_checkpoint = os.path.join(baseLoc, "sam2.1_hiera_base_plus.pt")
 
 
 class SelectionRefinerSAM(Gimp.PlugIn):
@@ -78,7 +100,7 @@ class SelectionRefinerSAM(Gimp.PlugIn):
         # get the image as numpy array (https://gitlab.gnome.org/GNOME/gimp/-/issues/8686)
         rect = Gegl.Rectangle.new(0, 0, w, h)
         buffer1 = layer.get_buffer()
-        buffer_bytes = buffer1.get(rect, 1.0, None, Gegl.AbyssPolicy(0))
+        buffer_bytes = buffer1.get(rect, 1.0, "RGBA u8", Gegl.AbyssPolicy(0))
         image_arr = np.frombuffer(buffer_bytes, dtype=np.uint8).reshape((h,w,-1))
 
         #Inference
@@ -111,10 +133,14 @@ class SelectionRefinerSAM(Gimp.PlugIn):
         im = np.array(image.resize((new_w, new_h)))
 
         # load SAM
-        sam = sam_model_registry["vit_l"](checkpoint=os.path.join(baseLoc, "sam_vit_l_0b3195.pth"))
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        sam.to(device=device)
-        predictor = SamPredictor(sam)
+        if SAM_VERSION == 1:
+            sam = sam_model_registry["vit_l"](checkpoint=sam_checkpoint)
+            sam.to(device=device)
+            predictor = SamPredictor(sam)
+        elif SAM_VERSION == 2:
+            sam2_model = build_sam2(sam_cfg, sam_checkpoint, device=device)
+            predictor = SAM2ImagePredictor(sam2_model)
         predictor.set_image(im)
 
         # sam prediction
