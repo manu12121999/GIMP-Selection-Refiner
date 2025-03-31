@@ -6,7 +6,7 @@ python3 -m venv gimpenv
 source gimpenv/bin/activate
 
 # Dependencies for CPU:
-# echo "installing for CPU" && python3 -m pip install torch==2.5 torchvision --index-url https://download.pytorch.org/whl/cpu
+# echo "installing for CPU" && python3 -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
 
 # Dependencies for GPU:
 echo "installing for GPU" && python3 -m pip install torch torchvision
