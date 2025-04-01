@@ -23,8 +23,10 @@ baseLoc = os.path.dirname(os.path.realpath(__file__))
 
 if current_platform != "windows":
     for version in range(6,20):
-        sys.path.extend([baseLoc+f'gimpenv/lib/python3.{version}', baseLoc+f'gimpenv/lib/python3.{version}/site-packages', baseLoc+f'gimpenv/lib/python3.{version}/site-packages/setuptools'])
-    sys.path.extend([baseLoc+'gimpenv/Lib', baseLoc+'gimpenv/Lib/site-packages', baseLoc+'gimpenv/Lib/site-packages/setuptools'])
+        sys.path.extend([join(baseLoc,f'gimpenv/lib/python3.{version}'), 
+                         join(baseLoc,f'gimpenv/lib/python3.{version}/site-packages'), 
+                         join(baseLoc,f'gimpenv/lib/python3.{version}/site-packages/setuptools')])
+    sys.path.extend([join(baseLoc,'gimpenv/Lib'), join(baseLoc,'gimpenv/Lib/site-packages'), join(baseLoc,'gimpenv/Lib/site-packages/setuptools')])
     sys.path.extend([baseLoc])
 
 
@@ -44,17 +46,17 @@ if current_platform != "windows":
 
     # set checkpoint
     if SAM_VERSION == 1:
-        sam_checkpoint = os.path.join(baseLoc, "sam_vit_l_0b3195.pth")
+        sam_checkpoint = join(baseLoc, "sam_vit_l_0b3195.pth")
     elif SAM_VERSION == 2:
         if SAM_SIZE == "small":
             sam_cfg = "configs/sam2.1/sam2.1_hiera_s.yaml"
-            sam_checkpoint = os.path.join(baseLoc, "sam2.1_hiera_small.pt")
+            sam_checkpoint = join(baseLoc, "sam2.1_hiera_small.pt")
         elif SAM_SIZE == "large":
             sam_cfg = "configs/sam2.1/sam2.1_hiera_l.yaml"
-            sam_checkpoint = os.path.join(baseLoc, "sam2.1_hiera_large.pt")
+            sam_checkpoint = join(baseLoc, "sam2.1_hiera_large.pt")
         else: # base
             sam_cfg = "configs/sam2.1/sam2.1_hiera_b+.yaml"
-            sam_checkpoint = os.path.join(baseLoc, "sam2.1_hiera_base_plus.pt")
+            sam_checkpoint = join(baseLoc, "sam2.1_hiera_base_plus.pt")
 
 
 
