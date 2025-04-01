@@ -10,8 +10,7 @@ call gimpenv\Scripts\activate.bat
 echo Installing dependencies for CPU
 python -m pip install --upgrade pip
 python -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
-python -m pip install git+https://github.com/facebookresearch/segment-anything.git
-
+python -m pip install sam2
 
 deactivate
 
