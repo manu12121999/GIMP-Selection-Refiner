@@ -7,17 +7,16 @@ echo please wait ...
 python -m venv gimpenv
 call gimpenv\Scripts\activate.bat
 
+echo Installing dependencies for CPU
 python -m pip install --upgrade pip
-
-echo "installing for CPU"
 python -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
-
 python -m pip install git+https://github.com/facebookresearch/segment-anything.git
 
 
 deactivate
 
-curl.exe -L -o sam_vit_b_01ec64.pth https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth
+echo Downloding SAM2 base
+curl.exe -L -o sam2.1_hiera_base_plus.pt https://dl.fbaipublicfiles.com/segment_anything_2/092824/sam2.1_hiera_base_plus.pt
 
 
 echo Virtual environment setup complete!

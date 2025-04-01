@@ -1,29 +1,49 @@
 print("running SAM inference")
-
+import os
 from os.path import join
 import sys
 import numpy as np
-#import torch
+import torch
 from PIL import Image
 
-# use SAM 1 for now
-from segment_anything import SamPredictor, sam_model_registry
-print("done importing, stating to set up model")
+
+baseLoc = os.path.dirname(os.path.realpath(__file__))
+
+SAM_VERSION = 2
+SAM_SIZE = "base"
+
+if SAM_VERSION == 1:
+    from segment_anything import SamPredictor, sam_model_registry
+elif SAM_VERSION == 2:
+    from sam2.build_sam import build_sam2
+    from sam2.sam2_image_predictor import SAM2ImagePredictor
+
+
+# set checkpoint
+if SAM_VERSION == 1:
+    sam_checkpoint = join(baseLoc, "sam_vit_l_0b3195.pth")
+elif SAM_VERSION == 2:
+    if SAM_SIZE == "small":
+        sam_cfg = "configs/sam2.1/sam2.1_hiera_s.yaml"
+        sam_checkpoint = join(baseLoc, "sam2.1_hiera_small.pt")
+    elif SAM_SIZE == "large":
+        sam_cfg = "configs/sam2.1/sam2.1_hiera_l.yaml"
+        sam_checkpoint = join(baseLoc, "sam2.1_hiera_large.pt")
+    else: # base
+        sam_cfg = "configs/sam2.1/sam2.1_hiera_b+.yaml"
+        sam_checkpoint = join(baseLoc, "sam2.1_hiera_base_plus.pt")
 
 
 if __name__=="__main__":
     
-    x1, y1, x2, y2, new_w, new_h, original_w, original_h, baseLoc = sys.argv[1:]
+    x1, y1, x2, y2, new_w, new_h, original_w, original_h = sys.argv[1:]
     x1, y1, x2, y2, new_w, new_h, original_w, original_h = map(int, [x1, y1, x2, y2, new_w, new_h, original_w, original_h])
 
-    # set checkpoint
-    sam_checkpoint = join(baseLoc, "sam_vit_b_01ec64.pth")
     image = Image.open(join(baseLoc, "rgb.png"))
     im = np.array(image.resize((new_w, new_h)))
 
     # load SAM
-    #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    SAM_VERSION = 1
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     if SAM_VERSION == 1:
         sam = sam_model_registry["vit_b"](checkpoint=sam_checkpoint)
         #sam.to(device=device)
