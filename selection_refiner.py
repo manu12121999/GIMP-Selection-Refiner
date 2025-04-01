@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 import os
+from os.path import join
 import sys
+import subprocess
+import platform
 
-# This Plugin is only for GIMP Version >= 3.0.0 and linux
+
+# This Plugin is only for GIMP Version >= 3.0.0 and windows
 import gi
 gi.require_version('Gimp', '3.0')
 from gi.repository import Gimp
@@ -13,57 +17,71 @@ from gi.repository import GLib
 from gi.repository import Gegl
 from gi.repository import Gio
 
-baseLoc = os.path.dirname(os.path.realpath(__file__))+'/'
-for version in range(6,20):
-    sys.path.extend([baseLoc+f'gimpenv/lib/python3.{version}', baseLoc+f'gimpenv/lib/python3.{version}/site-packages', baseLoc+f'gimpenv/lib/python3.{version}/site-packages/setuptools'])
-sys.path.extend([baseLoc+'gimpenv/Lib', baseLoc+'gimpenv/Lib/site-packages', baseLoc+'gimpenv/Lib/site-packages/setuptools'])
-sys.path.extend([baseLoc])
+current_platform = platform.system().lower()
+baseLoc = os.path.dirname(os.path.realpath(__file__))
 
 
-import numpy as np
-import torch
-from PIL import Image
-
-SAM_VERSION = 2
-SAM_SIZE = "base"
-
-if SAM_VERSION == 1:
-    from segment_anything import SamPredictor, sam_model_registry
-elif SAM_VERSION == 2:
-    from sam2.build_sam import build_sam2
-    from sam2.sam2_image_predictor import SAM2ImagePredictor
+if current_platform != "windows":
+    for version in range(6,20):
+        sys.path.extend([join(baseLoc,f'gimpenv/lib/python3.{version}'), 
+                         join(baseLoc,f'gimpenv/lib/python3.{version}/site-packages'), 
+                         join(baseLoc,f'gimpenv/lib/python3.{version}/site-packages/setuptools')])
+    sys.path.extend([join(baseLoc,'gimpenv/Lib'), join(baseLoc,'gimpenv/Lib/site-packages'), join(baseLoc,'gimpenv/Lib/site-packages/setuptools')])
+    sys.path.extend([baseLoc])
 
 
-# set checkpoint
-if SAM_VERSION == 1:
-    sam_checkpoint = os.path.join(baseLoc, "sam_vit_l_0b3195.pth")
-elif SAM_VERSION == 2:
-    if SAM_SIZE == "small":
-        sam_cfg = "configs/sam2.1/sam2.1_hiera_s.yaml"
-        sam_checkpoint = os.path.join(baseLoc, "sam2.1_hiera_small.pt")
-    elif SAM_SIZE == "large":
-        sam_cfg = "configs/sam2.1/sam2.1_hiera_l.yaml"
-        sam_checkpoint = os.path.join(baseLoc, "sam2.1_hiera_large.pt")
-    else: # base
-        sam_cfg = "configs/sam2.1/sam2.1_hiera_b+.yaml"
-        sam_checkpoint = os.path.join(baseLoc, "sam2.1_hiera_base_plus.pt")
+    import numpy as np
+    import torch
+    from PIL import Image
+
+    SAM_VERSION = 2
+    SAM_SIZE = "base"
+
+    if SAM_VERSION == 1:
+        from segment_anything import SamPredictor, sam_model_registry
+    elif SAM_VERSION == 2:
+        from sam2.build_sam import build_sam2
+        from sam2.sam2_image_predictor import SAM2ImagePredictor
+
+
+    # set checkpoint
+    if SAM_VERSION == 1:
+        sam_checkpoint = join(baseLoc, "sam_vit_l_0b3195.pth")
+    elif SAM_VERSION == 2:
+        if SAM_SIZE == "small":
+            sam_cfg = "configs/sam2.1/sam2.1_hiera_s.yaml"
+            sam_checkpoint = join(baseLoc, "sam2.1_hiera_small.pt")
+        elif SAM_SIZE == "large":
+            sam_cfg = "configs/sam2.1/sam2.1_hiera_l.yaml"
+            sam_checkpoint = join(baseLoc, "sam2.1_hiera_large.pt")
+        else: # base
+            sam_cfg = "configs/sam2.1/sam2.1_hiera_b+.yaml"
+            sam_checkpoint = join(baseLoc, "sam2.1_hiera_base_plus.pt")
+
+
 
 
 class SelectionRefinerSAM(Gimp.PlugIn):
 
     ## GimpPlugIn virtual methods ##
     def do_query_procedures(self):
-        return [ 'python-plugin-selection-refiner-sam' ]
+        procedure = 'python-plugin-selection-refiner-sam-win' if current_platform == "windows" else 'python-plugin-selection-refiner-sam'
+        return [procedure ]
 
 
     def do_create_procedure(self, name):
         self.mode = "select"
         procedure = None
         
-        procedure = Gimp.ImageProcedure.new(self, name,
-                                            Gimp.PDBProcType.PLUGIN,
-                                            self.refine_selection, None)
-        
+        if name == 'python-plugin-selection-refiner-sam-win':
+            procedure = Gimp.ImageProcedure.new(self, name,
+                                                Gimp.PDBProcType.PLUGIN,
+                                                self.refine_selection_win, None)
+        else:
+            procedure = Gimp.ImageProcedure.new(self, name,
+                                    Gimp.PDBProcType.PLUGIN,
+                                    self.refine_selection, None)
+            
         procedure.set_sensitivity_mask(Gimp.ProcedureSensitivityMask.ALWAYS)
 
         procedure.set_documentation(
@@ -78,6 +96,59 @@ class SelectionRefinerSAM(Gimp.PlugIn):
 
         return procedure
         
+    # call external python interpreter (for windows)
+    def refine_selection_win(self, procedure, run_mode, image, drawables, config, data):
+        
+        image.undo_group_start()
+
+
+        #GimpUi.init("python-plugin-selection-refiner-sam-win")
+        #dialog = GimpUi.ProcedureDialog.new(procedure, config, "Run Plugin")
+        #dialog.fill(["please wait"])
+        #dialog.run()
+        #dialog.fill(["please wait"])
+        layer = drawables[0]
+        w,h = layer.get_width(), layer.get_height()
+        scale = 1024 / max(w, h)
+        new_w, new_h = int(w*scale), int(h*scale)
+
+        selection = Gimp.Selection.bounds(image)
+        x1, y1 = int(selection.x1 * scale), int(selection.y1 * scale)
+        x2, y2 = int(selection.x2 * scale), int(selection.y2 * scale)
+
+        rgb_file = Gio.file_new_for_path(join(baseLoc, "rgb.png"))
+        mask_file = Gio.file_new_for_path(join(baseLoc, "mask.png"))
+
+
+        Gimp.file_save(Gimp.RunMode.NONINTERACTIVE, image, rgb_file, None)
+
+        
+        #Inference
+        python_path = join(baseLoc, "gimpenv", "Scripts", "python.exe")
+        inference_script = join(baseLoc, "sam_inference.py")
+        args = [str(x1), str(y1), str(x2), str(y2), str(new_w), str(new_h), str(w), str(h)]
+
+        command = [python_path, inference_script] + args
+
+        # Run the script using subprocess
+        subprocess.run(command)
+        
+        result_layer = Gimp.file_load_layer(Gimp.RunMode.NONINTERACTIVE, image, mask_file)
+
+        # insert layer because you cannot scale without adding the layer
+        image.insert_layer(result_layer, None, 1)
+
+        image.select_item(Gimp.ChannelOps.REPLACE, result_layer)
+        image.remove_layer(result_layer)
+
+        #dialog.destroy()
+        image.undo_group_end()
+        Gimp.displays_flush()
+
+        return procedure.new_return_values(Gimp.PDBStatusType.SUCCESS, None)
+        
+
+    # direct execution (for linux)
     def refine_selection(self, procedure, run_mode, image, drawables, config, data):
         
         image.undo_group_start()
@@ -104,7 +175,7 @@ class SelectionRefinerSAM(Gimp.PlugIn):
         image_arr = np.frombuffer(buffer_bytes, dtype=np.uint8).reshape((h,w,-1))
 
         #Inference
-        result_layer_arr = self.sam_inference(image_arr[:,:,:3], selection_bounds, new_w, new_h, w, h)
+        result_layer_arr = self.sam_infer(image_arr[:,:,:3], selection_bounds, new_w, new_h, w, h)
         
         result_layer = Gimp.Layer().new(image, "result", w, h, Gimp.ImageType.RGBA_IMAGE, 1, Gimp.LayerMode.NORMAL)
         image.insert_layer(result_layer, None, 1)
@@ -127,7 +198,8 @@ class SelectionRefinerSAM(Gimp.PlugIn):
         return procedure.new_return_values(Gimp.PDBStatusType.SUCCESS, None)
         
  
-    def sam_inference(self, image_array, bounds, new_w, new_h, original_w, original_h):
+    # linux only. windows uses "sam_inference.py"
+    def sam_infer(self, image_array, bounds, new_w, new_h, original_w, original_h):
             
         image = Image.fromarray(image_array)
         im = np.array(image.resize((new_w, new_h)))
@@ -158,5 +230,7 @@ class SelectionRefinerSAM(Gimp.PlugIn):
         mask_image = Image.fromarray(mask_rgba)
 
         return np.array(mask_image.resize((original_w, original_h)))
+
+
                 
 Gimp.main(SelectionRefinerSAM.__gtype__, sys.argv)
