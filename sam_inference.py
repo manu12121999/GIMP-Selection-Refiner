@@ -39,7 +39,7 @@ if __name__=="__main__":
     x1, y1, x2, y2, new_w, new_h, original_w, original_h = sys.argv[1:]
     x1, y1, x2, y2, new_w, new_h, original_w, original_h = map(int, [x1, y1, x2, y2, new_w, new_h, original_w, original_h])
 
-    image = Image.open(join(baseLoc, "rgb.png"))
+    image = Image.open(join(baseLoc, "rgb.png")).convert("RGB")
     im = np.array(image.resize((new_w, new_h)))
 
     # load SAM
